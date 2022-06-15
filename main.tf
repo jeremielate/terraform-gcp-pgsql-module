@@ -51,7 +51,7 @@ resource "google_sql_database_instance" "db" {
     tier              = var.tier
     availability_type = var.availability_type
 
-    // public ip configuration 
+    // public ip configuration
     dynamic "ip_configuration" {
       for_each = var.public ? toset(["public"]) : toset([])
 
@@ -61,7 +61,7 @@ resource "google_sql_database_instance" "db" {
       }
     }
 
-    // private ip configuration 
+    // private ip configuration
     dynamic "ip_configuration" {
       for_each = var.public ? toset([]) : toset(["private"])
       content {
@@ -103,16 +103,17 @@ resource "google_sql_database" "db" {
   instance = google_sql_database_instance.db.name
 }
 
-resource "random_password" "db_user" {
-  for_each = var.databases
+# resource "random_password" "db_user" {
+#   for_each = { for u in var.users
+#
+#   length = 32
+# }
 
-  length = 32
-}
+resource "google_sql_user" "db_user" {
+  for_each = var.users
 
-resource "google_sql_user" "db" {
-  for_each = var.databases
-
-  name     = each.value.username
   instance = google_sql_database_instance.db.name
-  password = random_password.db_user[each.key].result
+  name     = each.value
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+  # password = random_password.db_user[each.key].result
 }

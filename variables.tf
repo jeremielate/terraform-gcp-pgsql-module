@@ -20,8 +20,13 @@ variable "tier" {
 }
 
 variable "databases" {
-  type        = map(object({ name = string, username = string }))
-  description = "List of sql databases"
+  type        = set(string)
+  description = "List of sql databases on this instance"
+}
+
+variable "users" {
+  type        = set(string)
+  description = "List of sql users allowed to connect to this instance"
 }
 
 variable "deletion_protection" {
