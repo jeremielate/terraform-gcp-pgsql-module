@@ -33,16 +33,18 @@ resource "google_service_networking_connection" "db" {
   depends_on = [google_project_service.services]
 }
 
-# resource "random_string" "db_name" {
-#   length  = 4
-#   numeric = false
-#   upper   = false
-#   special = false
-# }
+# allows to recreate the db instance with a new name because
+# the previous name remains allocated after destruction for a few days
+resource "random_string" "db_name_suffix" {
+  length  = 4
+  numeric = false
+  upper   = false
+  special = false
+}
 
 resource "google_sql_database_instance" "db" {
-  name             = var.name
-  database_version = var.database_version
+  name             = "${var.name}-${random_string.db_name_suffix.result}" # unique name
+  database_version = local.database_version
   region           = var.region
 
   settings {
@@ -79,6 +81,8 @@ resource "google_sql_database_instance" "db" {
         retained_backups = 7
       }
     }
+
+    user_labels = var.user_labels
   }
 
   deletion_protection = var.deletion_protection
@@ -99,13 +103,10 @@ resource "google_sql_database" "db" {
   instance = google_sql_database_instance.db.name
 }
 
-resource "random_password" "db" {
+resource "random_password" "db_user" {
   for_each = var.databases
 
   length = 32
-  keepers = {
-    name = each.key
-  }
 }
 
 resource "google_sql_user" "db" {
@@ -113,5 +114,5 @@ resource "google_sql_user" "db" {
 
   name     = each.value.username
   instance = google_sql_database_instance.db.name
-  password = random_password.db[each.key].result
+  password = random_password.db_user[each.key].result
 }

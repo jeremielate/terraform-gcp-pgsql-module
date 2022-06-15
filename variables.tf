@@ -3,12 +3,6 @@ variable "name" {
   description = "Name of the instance database"
 }
 
-variable "database_version" {
-  type        = string
-  default     = "POSTGRES_14"
-  description = "Database version of the instance"
-}
-
 variable "availability_type" {
   type        = string
   default     = "ZONAL"
@@ -52,4 +46,13 @@ variable "network_prefix_length" {
   type        = number
   description = "Network prefix length"
   default     = 16
+}
+
+variable "user_labels" {
+  type    = map(string)
+  default = {}
+}
+
+locals {
+  database_version = "POSTGRES_14"
 }
