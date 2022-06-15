@@ -1,25 +1,36 @@
 data "google_project" "project" {
 }
 
-resource "google_project_service" "cloudsql" {
-  project            = data.google_project.project_id
-  service            = "sqladmin.googleapis.com"
+resource "google_project_service" "services" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "sqladmin.googleapis.com",
+    "servicenetworking.googleapis.com",
+  ])
+
+  project            = data.google_project.project.id
+  service            = each.value
   disable_on_destroy = false
 }
 
-resource "google_compute_global_address" "db_priv_ip" {
-  name         = "${var.name}-db-priv-ip"
-  purpose      = "VPC_PEERING"
-  address_type = "INTERNAL"
-  network      = google_compute_network.supernetwork.id
+resource "google_compute_global_address" "db_ip" {
+  for_each = var.public ? toset([]) : toset(["private"])
+
+  name          = "${var.name}-db-priv-ip"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = var.network_prefix_length
+  network       = var.compute_network_id
 }
 
 resource "google_service_networking_connection" "db" {
-  network                 = google_compute_network.supernetwork.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.db_priv_ip.name]
+  for_each = var.public ? toset([]) : toset(["private"])
 
-  depends_on = [google_project_service.cloudsql]
+  network                 = var.compute_network_id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.db_ip[each.key].name]
+
+  depends_on = [google_project_service.services]
 }
 
 # resource "random_string" "db_name" {
@@ -40,18 +51,20 @@ resource "google_sql_database_instance" "db" {
 
     // public ip configuration 
     dynamic "ip_configuration" {
-      for_each = var.public ? toset(["public"]) : {}
+      for_each = var.public ? toset(["public"]) : toset([])
 
       content {
         ipv4_enabled = true # public ip address
+        require_ssl  = true
       }
     }
 
     // private ip configuration 
     dynamic "ip_configuration" {
-      for_each = var.public ? {} : toset(["private"])
+      for_each = var.public ? toset([]) : toset(["private"])
       content {
         ipv4_enabled    = false
+        require_ssl     = true
         private_network = var.compute_network_id
       }
     }

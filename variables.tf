@@ -47,3 +47,9 @@ variable "compute_network_id" {
   description = "Compute network id (must be set if public=false)"
   default     = null
 }
+
+variable "network_prefix_length" {
+  type        = number
+  description = "Network prefix length"
+  default     = 16
+}
