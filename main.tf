@@ -72,13 +72,13 @@ resource "google_sql_database_instance" "db" {
     }
 
     backup_configuration {
-      enabled                        = true
-      point_in_time_recovery_enabled = false
-      start_time                     = "23:00"
-      transaction_log_retention_days = 7
+      enabled                        = var.backup_enabled
+      point_in_time_recovery_enabled = var.backup_point_in_time_recovery_enabled
+      start_time                     = var.backup_start_time
+      transaction_log_retention_days = var.backup_transaction_log_retention_days
 
       backup_retention_settings {
-        retained_backups = 7
+        retained_backups = var.backup_retained_backups
       }
     }
 
@@ -103,17 +103,65 @@ resource "google_sql_database" "db" {
   instance = google_sql_database_instance.db.name
 }
 
-# resource "random_password" "db_user" {
-#   for_each = { for u in var.users
-#
-#   length = 32
-# }
+resource "random_password" "db_user" {
+  for_each = var.builtin_users
+
+  length = local.user_password_length
+}
 
 resource "google_sql_user" "db_user" {
-  for_each = var.users
+  for_each = var.builtin_users
 
   instance = google_sql_database_instance.db.name
   name     = each.value
+  type     = "BUILT_IN"
+  password = random_password.db_user[each.key].result
+}
+
+resource "google_sql_user" "db_user_u" {
+  for_each = var.iam_users
+
+  instance = google_sql_database_instance.db.name
+  name     = each.value
+  type     = "CLOUD_IAM_USER"
+}
+
+resource "google_project_iam_member" "iam_user_cloudsql_instance_user" {
+  for_each = var.iam_service_accounts
+
+  project = data.google_project.project.id
+  role    = "roles/cloudsql.instanceUser"
+  member  = format("user:%s", each.value)
+}
+
+resource "google_project_iam_member" "iam_user_cloudsql_client" {
+  for_each = var.iam_service_accounts
+
+  project = data.google_project.project.id
+  role    = "roles/cloudsql.client"
+  member  = format("user:%s", each.value)
+}
+
+resource "google_sql_user" "db_user_sa" {
+  for_each = var.iam_service_accounts
+
+  instance = google_sql_database_instance.db.name
+  name     = trimsuffix(each.value, ".gserviceaccount.com")
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
-  # password = random_password.db_user[each.key].result
+}
+
+resource "google_project_iam_member" "iam_sa_cloudsql_instance_user" {
+  for_each = var.iam_service_accounts
+
+  project = data.google_project.project.id
+  role    = "roles/cloudsql.instanceUser"
+  member  = format("serviceAccount:%s", each.value)
+}
+
+resource "google_project_iam_member" "iam_sa_cloudsql_client" {
+  for_each = var.iam_service_accounts
+
+  project = data.google_project.project.id
+  role    = "roles/cloudsql.client"
+  member  = format("serviceAccount:%s", each.value)
 }
