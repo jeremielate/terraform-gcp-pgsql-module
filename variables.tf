@@ -30,6 +30,12 @@ variable "public" {
   default     = false
 }
 
+variable "authorized_networks" {
+  type        = map(object({}))
+  description = "Networks allowed to connect to this instance"
+  default     = {}
+}
+
 variable "builtin_users" {
   type        = set(string)
   description = "List of sql users allowed to connect to this instance"

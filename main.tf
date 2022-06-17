@@ -15,19 +15,19 @@ resource "google_project_service" "services" {
 }
 
 resource "google_compute_global_address" "db_ip" {
-  for_each = var.public ? toset([]) : toset(["private"])
+  for_each = var.compute_network_id != null ? toset([var.compute_network_id]) : toset([])
 
   name          = "${var.name}-db-priv-ip"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = var.network_prefix_length
-  network       = var.compute_network_id
+  network       = each.key
 }
 
 resource "google_service_networking_connection" "db" {
-  for_each = var.public ? toset([]) : toset(["private"])
+  for_each = var.compute_network_id != null ? toset([var.compute_network_id]) : toset([])
 
-  network                 = var.compute_network_id
+  network                 = each.key
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.db_ip[each.key].name]
 
@@ -52,23 +52,19 @@ resource "google_sql_database_instance" "db" {
     tier              = var.tier
     availability_type = var.availability_type
 
-    // public ip configuration
-    dynamic "ip_configuration" {
-      for_each = var.public ? toset(["public"]) : toset([])
+    ip_configuration {
+      ipv4_enabled    = var.public # public ip address
+      require_ssl     = true
+      private_network = try(var.compute_network_id, null)
 
-      content {
-        ipv4_enabled = true # public ip address
-        require_ssl  = true
-      }
-    }
+      dynamic "authorized_networks" {
+        for_each = var.authorized_networks
 
-    // private ip configuration
-    dynamic "ip_configuration" {
-      for_each = var.public ? toset([]) : toset(["private"])
-      content {
-        ipv4_enabled    = false
-        require_ssl     = true
-        private_network = var.compute_network_id
+        content {
+          name            = try(authorized_networks.value.name, null)
+          value           = try(authorized_networks.value.value, null)
+          expiration_time = try(authorized_networks.value.expiration_time, null)
+        }
       }
     }
 

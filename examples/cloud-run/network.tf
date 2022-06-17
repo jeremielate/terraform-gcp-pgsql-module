@@ -7,7 +7,7 @@ resource "google_compute_network" "supernetwork" {
 }
 
 resource "google_compute_subnetwork" "subnetwork" {
-  for_each                 = var.gcp_subnetworks
+  for_each = var.gcp_subnetworks
 
   name                     = each.key
   ip_cidr_range            = each.value
