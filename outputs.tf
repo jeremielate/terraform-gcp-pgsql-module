@@ -1,3 +1,7 @@
+output "name" {
+  value = google_sql_database_instance.db.name
+}
+
 output "self_link" {
   value = google_sql_database_instance.db.self_link
 }

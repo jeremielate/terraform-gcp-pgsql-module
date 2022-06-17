@@ -1,12 +1,17 @@
 # Google Cloud PostgreSQL Terraform module
 
-By default, this module will create a backup enabled regional postgresql 14 database with no public ip.
+By default, this module will create a backup enabled regional postgresql 14 database with no public IP.
 This database will be saved every day and a maximum of 7 backups will be retained.
+For security, SSL is required to connect to the database.
+It also possible to use the Cloud SQL authentication proxy to connect to the database.
+
+The database will have a random generated suffix appended to the name because
+it makes it easier to recreate the database if needed since the name is retained for some days after deletion.
 
 
-## Example
+## Examples
 
-* Private IP Zonal database instance for testing
+### Private IP zonal database instance for testing
 ```terraform
 module "database" {
   source = "git::ssh://jeremielate/terraform-gcp-pgsql-module.git"
@@ -31,12 +36,12 @@ module "database" {
 Other examples, can be found in `/examples`.
 
 ## Required variables
-| Name      | Description                                 |
-| --------- | ------------------------------------------- |
-| name      | Name of the instance database               |
-| region    | Database region location (eg. europe-west1) |
-| tier      | Database tier (instance size)               |
-| databases | List of sql databases on this instance      |
+| Name        | Description                                 |
+| ----------- | ------------------------------------------- |
+| `name`      | Name of the instance database               |
+| `region`    | Database region location (eg. europe-west1) |
+| `tier`      | Database tier (instance size)               |
+| `databases` | List of sql databases on this instance      |
 
 ## Optional variables
 | Name                                    | Description                                                     | Default |
@@ -55,5 +60,3 @@ Other examples, can be found in `/examples`.
 | `backup_transaction_log_retention_days` | Transaction log retention days                                  | 7       |
 | `backup_retained_backups`               | Retained backup count                                           | 7       |
 | `user_labels`                           | User labels (key/value tags)                                    | {}      |
-
-

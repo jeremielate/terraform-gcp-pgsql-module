@@ -4,10 +4,6 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 4.20"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.1"
-    }
   }
 
   required_version = ">= 1.1"
@@ -16,9 +12,6 @@ terraform {
 provider "google" {
   project = "padok-test"
   region  = "europe-west1"
-}
-
-provider "random" {
 }
 
 data "google_client_config" "default" {
@@ -47,7 +40,7 @@ resource "google_service_account" "cloud_run_sql_client" {
 }
 
 module "database" {
-  source = "../"
+  source = "../../"
 
   name                = "padok"
   tier                = "db-f1-micro"
@@ -66,19 +59,11 @@ module "database" {
   ]
 }
 
-resource "google_storage_bucket" "registry" {
-  name          = "padok-test"
-  location      = "EU"
-  force_destroy = true
-
-  depends_on = [google_project_service.gke_testing_test]
-}
-
+# This container registry is used for storing images needed by Cloud Run
+# Don't forget to delete the backing storage bucket after deletion of this resource
 resource "google_container_registry" "registry" {
   project  = "padok-test"
   location = "EU"
-
-  depends_on = [google_storage_bucket.registry]
 }
 
 resource "google_project_iam_member" "iam_sa_cloudsql_instance_user" {
@@ -95,8 +80,7 @@ resource "google_project_iam_member" "iam_sa_cloudsql_client" {
 
 
 locals {
-  sql_iam_account = trimsuffix(google_service_account.cloud_run_sql_client.email, ".gserviceaccount.com")
-  pg_conn         = "postgresql://test:${urlencode(module.database.user_passwords["test"])}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
+  pg_conn = "postgresql://test:${urlencode(module.database.user_passwords["test"])}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
 }
 
 resource "google_cloud_run_service" "default" {
@@ -106,7 +90,7 @@ resource "google_cloud_run_service" "default" {
   template {
     spec {
       containers {
-        image = "eu.gcr.io/padok-test/test:latest"
+        image = "eu.gcr.io/padok-test/test:latest" # use a container hosted on gcr.io or docker.pkg.dev only
         env {
           name  = "PG_DB_URL"
           value = local.pg_conn
@@ -117,7 +101,9 @@ resource "google_cloud_run_service" "default" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale"      = "2"
+        # autoscale maximum replicas count
+        "autoscaling.knative.dev/maxScale" = "2"
+        # This annotation notifies Cloud Run to create the auth proxy
         "run.googleapis.com/cloudsql-instances" = module.database.connection_name
         "run.googleapis.com/client-name"        = "terraform"
       }
@@ -128,6 +114,7 @@ resource "google_cloud_run_service" "default" {
   autogenerate_revision_name = true
 }
 
+# Allow any user to call the service defined above (no authentication)
 resource "google_cloud_run_service_iam_member" "run_all_users" {
   service  = google_cloud_run_service.default.name
   location = google_cloud_run_service.default.location
@@ -135,6 +122,7 @@ resource "google_cloud_run_service_iam_member" "run_all_users" {
   member   = "allUsers"
 }
 
+# Outputs the url to call the service
 output "service_url" {
   value = google_cloud_run_service.default.status[0].url
 }

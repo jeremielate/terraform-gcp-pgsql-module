@@ -1,6 +1,7 @@
 data "google_project" "project" {
 }
 
+# Enable services needed for Cloud SQL
 resource "google_project_service" "services" {
   for_each = toset([
     "compute.googleapis.com",
