@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -36,22 +37,35 @@ func (t *Test) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "time from database is %v\n", tim.Format(time.RFC3339))
 }
 
-func main() {
+func (t *Test) Close() error {
+	return t.db.Close()
+}
+
+func run() error {
 	port, ok := os.LookupEnv("PORT")
 	if !ok {
 		port = "8080"
 	}
 	dburl, ok := os.LookupEnv("PG_DB_URL")
 	if !ok {
-		log.Fatal("PG_DB_URL environment variable not set")
+		return errors.New("PG_DB_URL environment variable not set")
 	}
 
 	test, err := New(dburl)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	defer test.Close()
 
 	if err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", port), test); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
