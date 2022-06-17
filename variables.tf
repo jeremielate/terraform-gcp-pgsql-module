@@ -13,9 +13,14 @@ variable "tier" {
   description = "Database tier (instance size)"
 }
 
+variable "databases" {
+  type        = set(string)
+  description = "List of sql databases on this instance"
+}
+
 variable "availability_type" {
   type        = string
-  default     = "ZONAL"
+  default     = "REGIONAL"
   description = "Database availability (ZONAL or REGIONAL)"
 }
 
@@ -23,11 +28,6 @@ variable "public" {
   type        = bool
   description = "Database public ip enabled"
   default     = false
-}
-
-variable "databases" {
-  type        = set(string)
-  description = "List of sql databases on this instance"
 }
 
 variable "builtin_users" {

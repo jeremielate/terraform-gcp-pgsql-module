@@ -1,8 +1,12 @@
 # Google Cloud PostgreSQL Terraform module
 
-## Examples
+By default, this module will create a backup enabled regional postgresql 14 database with no public ip.
+This database will be saved every day and a maximum of 7 backups will be retained.
 
-* Private ip Zonal PostgreSQL instance
+
+## Example
+
+* Private IP Zonal database instance for testing
 ```terraform
 module "database" {
   source = "git::ssh://jeremielate/terraform-gcp-pgsql-module.git"
@@ -24,7 +28,7 @@ module "database" {
   ]
 }
 ```
-
+Other examples, can be found in `/examples`.
 
 ## Required variables
 | Name      | Description                                 |
@@ -35,12 +39,21 @@ module "database" {
 | databases | List of sql databases on this instance      |
 
 ## Optional variables
-| Name      | Description                                 | Default |
-| --------- | ------------------------------------------- | ------- |
-| availability_type      | Database availability              | ZONAL |
-| public      | Database public ip enabled              | false |
-| builtin_users      | List of builtin sql users allowed to connect to the instance | [] |
-| iam_users      | List of IAM users allowed to connect to the instance | [] |
-| iam_service_accounts      | List of IAM service accounts allowed to connect to the instance | [] |
-| deletion_protection      | Protection against accidental deletion | true |
-| compute_network_id | VPC network id | null |
+| Name                                    | Description                                                     | Default |
+| --------------------------------------- | --------------------------------------------------------------- | ------- |
+| `availability_type`                     | Database availability                                           | ZONAL   |
+| `public`                                | Database public ip enabled                                      | false   |
+| `builtin_users`                         | List of builtin sql users allowed to connect to the instance    | []      |
+| `iam_users`                             | List of IAM users allowed to connect to the instance            | []      |
+| `iam_service_accounts`                  | List of IAM service accounts allowed to connect to the instance | []      |
+| `deletion_protection`                   | Protection against accidental deletion                          | true    |
+| `compute_network_id`                    | VPC network id                                                  | null    |
+| `network_prefix_length`                 | Subnet where the private ip for the instance will be allocated  | 16      |
+| `backup_enabled`                        | Enable regular backups of the database                          | 16      |
+| `backup_point_in_time_recovery_enabled` | Enable regular backups of the database                          | 16      |
+| `backup_start_time`                     | Time of the day when a backup can be started                    | "23:00" |
+| `backup_transaction_log_retention_days` | Transaction log retention days                                  | 7       |
+| `backup_retained_backups`               | Retained backup count                                           | 7       |
+| `user_labels`                           | User labels (key/value tags)                                    | {}      |
+
+
