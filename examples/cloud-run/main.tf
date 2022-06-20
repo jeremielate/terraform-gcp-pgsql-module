@@ -89,7 +89,7 @@ resource "google_project_iam_member" "iam_sa_cloudsql_client" {
 
 
 locals {
-  pg_conn = "postgresql://test:${urlencode(module.database.user_credentials["test"])}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
+  pg_conn = "postgresql://test:${urlencode(module.database.user_credentials["test"].password)}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
 }
 
 resource "google_cloud_run_service" "default" {
