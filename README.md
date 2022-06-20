@@ -84,3 +84,14 @@ Other examples, can be found in `/examples`.
 | `server_ca_cert.create_time`             | Creation time of the CA Cert                                                                                            |
 | `server_ca_cert.expiration_time`         | Expiration time of the CA Cert                                                                                          |
 | `server_ca_cert.sha1_fingerprint`        | SHA Fingerprint of the CA Cert                                                                                          |
+
+## Decisions on input/output variables
+
+This module has made choices about his input/output variables:
+* The PosgreSQL version cannot be set with an input variable to ensure that the module version follows the database version
+* Configuration blocks to set replicas, binary logs and other MySQL specific things cannot be set with input variables either
+* The variable `settings.ip_configuration.require_ssl` is always true as a best practice
+* The db instance variable `settings.ip_configuration.ipv4_enabled` is confusing, an input variable named `public` is used to set this
+* A choice must be made when configuring the connectivity of the database since the variable `public` and `vpc_peering_enabled` are false
+* Apart from the point mentioned above, the default configuration is ready for production (backup, maintenance window and regional availability enabled)
+* Every database builtin user will have a generated client certificate for login, exported as `user_credentials[].{ssl_cert,ssl_private_key}`
