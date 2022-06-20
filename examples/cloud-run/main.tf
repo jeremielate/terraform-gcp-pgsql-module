@@ -44,8 +44,10 @@ module "database" {
 
   name                = "padok"
   tier                = "db-f1-micro"
+  availability_type   = "ZONAL"
   region              = "europe-west1"
-  public              = true
+  public              = false
+  vpc_peering_enabled = true
   compute_network_id  = google_compute_network.supernetwork.id
   deletion_protection = false
   backup_enabled      = false
@@ -53,6 +55,13 @@ module "database" {
   databases = [
     "test"
   ]
+
+  authorized_networks = {
+    default = {
+      value           = "178.63.98.173/32"
+      expiration_time = timeadd(timestamp(), "1h")
+    }
+  }
 
   builtin_users = [
     "test",
@@ -80,7 +89,7 @@ resource "google_project_iam_member" "iam_sa_cloudsql_client" {
 
 
 locals {
-  pg_conn = "postgresql://test:${urlencode(module.database.user_passwords["test"])}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
+  pg_conn = "postgresql://test:${urlencode(module.database.user_credentials["test"])}@/test?host=/cloudsql/${urlencode(module.database.connection_name)}&sslmode=disable"
 }
 
 resource "google_cloud_run_service" "default" {

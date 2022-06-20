@@ -31,7 +31,7 @@ variable "public" {
 }
 
 variable "authorized_networks" {
-  type        = map(object({}))
+  type        = map(any)
   description = "Networks allowed to connect to this instance"
   default     = {}
 }
@@ -60,9 +60,15 @@ variable "deletion_protection" {
   default     = true
 }
 
+variable "vpc_peering_enabled" {
+  type        = bool
+  description = "Create a VPC peering between the instance and the compute network"
+  default     = false
+}
+
 variable "compute_network_id" {
   type        = string
-  description = "Compute network id (must be set if public=false)"
+  description = "Compute network id (must be set if vpc_peering=true)"
   default     = null
 }
 
@@ -97,6 +103,21 @@ variable "backup_retained_backups" {
   default = 7
 }
 
+variable "maintenance_window_day" {
+  type    = number
+  default = 1
+}
+
+variable "maintenance_window_hour" {
+  type    = number
+  default = 6
+}
+
+variable "maintenance_window_update_track" {
+  type    = string
+  default = "stable"
+}
+
 variable "user_labels" {
   type    = map(string)
   default = {}
@@ -105,4 +126,5 @@ variable "user_labels" {
 locals {
   database_version     = "POSTGRES_14"
   user_password_length = 32
+  module_name          = basename(abspath(path.module))
 }

@@ -15,19 +15,26 @@ resource "google_project_service" "services" {
 }
 
 resource "google_compute_global_address" "db_ip" {
-  for_each = var.compute_network_id != null ? toset([var.compute_network_id]) : toset([])
+  for_each = var.vpc_peering_enabled ? { "vpc_peering" : var.compute_network_id } : {}
 
   name          = "${var.name}-db-priv-ip"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = var.network_prefix_length
-  network       = each.key
+  network       = each.value
+
+  lifecycle {
+    precondition {
+      condition     = var.compute_network_id != null
+      error_message = "${local.module_name}: The compute_network_id variable must be set when vpc_peering_enabled is true."
+    }
+  }
 }
 
 resource "google_service_networking_connection" "db" {
-  for_each = var.compute_network_id != null ? toset([var.compute_network_id]) : toset([])
+  for_each = var.vpc_peering_enabled ? { "vpc_peering" : var.compute_network_id } : {}
 
-  network                 = each.key
+  network                 = each.value
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.db_ip[each.key].name]
 
@@ -55,14 +62,14 @@ resource "google_sql_database_instance" "db" {
     ip_configuration {
       ipv4_enabled    = var.public # public ip address
       require_ssl     = true
-      private_network = try(var.compute_network_id, null)
+      private_network = var.vpc_peering_enabled ? var.compute_network_id : null
 
       dynamic "authorized_networks" {
         for_each = var.authorized_networks
 
         content {
-          name            = try(authorized_networks.value.name, null)
-          value           = try(authorized_networks.value.value, null)
+          name            = authorized_networks.key
+          value           = authorized_networks.value.value
           expiration_time = try(authorized_networks.value.expiration_time, null)
         }
       }
@@ -79,16 +86,16 @@ resource "google_sql_database_instance" "db" {
       }
     }
 
+    maintenance_window {
+      day          = var.maintenance_window_day
+      hour         = var.maintenance_window_hour
+      update_track = var.maintenance_window_update_track
+    }
+
     user_labels = var.user_labels
   }
 
   deletion_protection = var.deletion_protection
-
-  timeouts {
-    // Updates can be slow on big instances
-    update = "1h"
-    delete = "1h"
-  }
 
   depends_on = [google_service_networking_connection.db]
 }
@@ -113,6 +120,13 @@ resource "google_sql_user" "db_user" {
   name     = each.value
   type     = "BUILT_IN"
   password = random_password.db_user[each.key].result
+}
+
+resource "google_sql_ssl_cert" "db_user" {
+  for_each = var.builtin_users
+
+  instance    = google_sql_database_instance.db.name
+  common_name = each.value
 }
 
 resource "google_sql_user" "db_user_u" {
@@ -143,8 +157,9 @@ resource "google_sql_user" "db_user_sa" {
   for_each = var.iam_service_accounts
 
   instance = google_sql_database_instance.db.name
-  name     = trimsuffix(each.value, ".gserviceaccount.com")
-  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+  # truncate SA name since the api doesn't allow the full name
+  name = trimsuffix(each.value, ".gserviceaccount.com")
+  type = "CLOUD_IAM_SERVICE_ACCOUNT"
 }
 
 resource "google_project_iam_member" "iam_sa_cloudsql_instance_user" {
